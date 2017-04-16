@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DNA alignment with Gap Penalty 
+DNA alignement with Gap Penalty 
 (Neddleman/Wunsch techniques)
 Created on Fri Mar 03 15:26:03 2017
 
@@ -132,7 +132,7 @@ def comparison_traceback(matrix, i, j, dna_vector1, dna_vector2, working_solutio
     
             
 def traceback(matrix, dna_vector1, dna_vector2, i, j, working_solution1, working_solution2, 
-              gap_penalty = -2, match_score = 2, mismatch_score = -1):
+              stack_solution1, stack_solution2, gap_penalty = -2, match_score = 2, mismatch_score = -1):
     """
     This function execute the traceback and return one solution (a pathway) and all the 
     coordinate of the others possibles solutions found
@@ -148,9 +148,16 @@ def traceback(matrix, dna_vector1, dna_vector2, i, j, working_solution1, working
     :return list the stack of the solutions of the first sequence of DNA
     :return list the stack of the solutions of the second sequence of DNA
     """
+
     solution1 = working_solution1
     solution2 = working_solution2
-    stack_solution1, stack_solution2, stack_i_to_add, stack_j_to_add = [], [], [], []
+    stack_i_to_add, stack_j_to_add = [], []
+
+    if stack_solution1:
+        stack_solution1 = stack_solution1[:-1]
+        stack_solution2 = stack_solution2[:-1]
+
+        
     while i!=0 and j!=0:
         (working_solution1, working_solution2, i, j, working_stack_solution1, working_stack_solution2, 
         working_stack_i_to_add, working_stack_j_to_add)  = comparison_traceback(matrix, i, j, dna_vector1, 
@@ -162,6 +169,7 @@ def traceback(matrix, dna_vector1, dna_vector2, i, j, working_solution1, working
         stack_solution2 += working_stack_solution2
         stack_i_to_add += working_stack_i_to_add
         stack_j_to_add += working_stack_j_to_add
+
     return solution1, solution2, stack_solution1, stack_solution2, stack_i_to_add, stack_j_to_add
 
 def reverse(list_solution):
@@ -172,18 +180,6 @@ def reverse(list_solution):
     """
     return [element[::-1] for element in list_solution]
 
-
-def complete_sequence(list_solution):
-    """
-    This function is recursive, it completes all the solutions with the part of precedent string 
-    in a list of strings
-    :param list of string
-    :return list of string completed
-    """
-    new_list_solution = [list_solution[element-1][:len(list_solution[element-1])-len(list_solution[element])]
-                         +list_solution[element] for element in range(1,len(list_solution))]
-    new_list_solution.insert(0,list_solution[0])
-    return new_list_solution
            
 def stack_traceback(matrix, dna_vector1, dna_vector2, gap_penalty = -2, match_score = 2, mismatch_score = -1):
     """
@@ -205,34 +201,51 @@ def stack_traceback(matrix, dna_vector1, dna_vector2, gap_penalty = -2, match_sc
     working_solution1 = dna_vector1[-1]
     working_solution2 = dna_vector2[-1]
     while i!=0 and j!=0:
+        old_i = i
         (solution1, solution2, stack_solution1, stack_solution2, stack_i_to_add, 
         stack_j_to_add) = traceback(matrix, dna_vector1, dna_vector2, i, j, working_solution1, 
-                          working_solution2, gap_penalty, match_score, mismatch_score)    
+                          working_solution2, stack_solution1, stack_solution2, gap_penalty, match_score, mismatch_score) 
+
         if not stack_solution1 and not stack_solution2:
+            first_part_solution1 = final_solution1[0][:max(len(dna_vector2),len(dna_vector1))-old_i]
+            first_part_solution2 = final_solution2[0][:max(len(dna_vector2),len(dna_vector1))-old_i]
+            solution1 = first_part_solution1 + solution1
+            solution2 = first_part_solution2 + solution2
+
             i = 0
             j = 0
             final_solution1.insert(index_final,solution1)
             final_solution2.insert(index_final,solution2)
+
+
         else:        
+            if final_solution1:
+                first_part_solution1 = final_solution1[0][:max(len(dna_vector2),len(dna_vector1))-old_i]
+                first_part_solution2 = final_solution2[0][:max(len(dna_vector2),len(dna_vector1))-old_i]
+                solution1 = first_part_solution1 + solution1
+                solution2 = first_part_solution2 + solution2
+            
             final_solution1.insert(index_final,solution1)
             final_solution2.insert(index_final,solution2)
             working_solution1 = stack_solution1[-1]
             working_solution2 = stack_solution2[-1]
+            stack_i = stack_i[:-1]
+            stack_j = stack_j[:-1]
             stack_i += stack_i_to_add
             stack_j += stack_j_to_add
+
             i = stack_i[-1]
             j = stack_j[-1]
             index_final+=1
-    final_solution1 = complete_sequence(final_solution1)
-    final_solution2 = complete_sequence(final_solution2)
     final_solution1 = reverse(final_solution1)
     final_solution2 = reverse(final_solution2)
+
     return final_solution1, final_solution2
     
 def sequences_and_parameters_definition():
     dna_vector1 = 'GGATCGA'
     dna_vector2 = 'GAATTCAGTTA'
-    gap_penalty = -2
+    gap_penalty = -2  
     match_score = 2
     mismatch_score = -1        
     print("Do you want to input by yourself the DNA sequences to do the alignment job ?")
@@ -241,10 +254,10 @@ def sequences_and_parameters_definition():
     answer1 = input()  
     if answer1 == 1:
         print("Please type the first sequence with quotations and press enter")
-        print("For example: GGATCGA")
+        print("For example: 'GGATCGA'")
         dna_vector1 = input()
         print("Now type the second sequence with quotations and press enter")
-        print("For example: GAATTCAGTTA")
+        print("For example: 'GAATTCAGTTA'")
         dna_vector2 = input()
 
     print("Now do you want to define by yourself the parameters of the gap penalty and the match/mismatch score ?")
@@ -267,7 +280,10 @@ def sequences_and_parameters_definition():
     
 """
 Main
-"""     
+"""  
+  
+
+
 dna_vector1, dna_vector2, gap_penalty, match_score, mismatch_score = sequences_and_parameters_definition()   
 start_time = time.time()
 m = create_matrix(dna_vector1, dna_vector2, gap_penalty, match_score, mismatch_score)
@@ -276,8 +292,7 @@ print("The differents results of alignements for the first sequence are: ")
 print(solution1)
 print("The differents results of alignements for the second sequence are: ")
 print(solution2)
-print("--- %s seconds ---" % (time.time() - start_time))    
-
+print("--- %s seconds ---" % (time.time() - start_time)) 
 
 
 
